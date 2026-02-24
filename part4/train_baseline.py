@@ -466,6 +466,7 @@ Examples:
     parser.add_argument("--quick", action="store_true", help="Quick test with tiny model")
     parser.add_argument("--small", action="store_true", help="Small model")
     parser.add_argument("--medium", action="store_true", help="Medium model (default)")
+    parser.add_argument("--micah", action="store_true", help="Micah's parameters (default)")
     parser.add_argument("--device", type=str, default=None, help="Device (auto-detect if not set)")
     args = parser.parse_args()
     
@@ -474,8 +475,10 @@ Examples:
         config_name = "quick"
     elif args.small:
         config_name = "small"
-    else:
+    elif args.medium:
         config_name = "medium"
+    else:
+        config_name = "micah"
     
     config = CONFIGS[config_name]
     
