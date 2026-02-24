@@ -20,6 +20,32 @@ class PromptTemplate:
         "basic": "Context: {context}\n\nQuestion: {question}\n\nChoices:\n{choices_formatted}\n\nAnswer:",
         "instruction": "Read the following passage and answer the question.\n\nPassage: {context}\n\nQuestion: {question}\n\n{choices_formatted}\n\nSelect the letter:",
         "simple": "{context}\n{question}\n{choices_formatted}\nThe answer is",
+        "micah" : """
+        Read the following passage and answer the question.
+
+        Passage: Grandma always made the best apple pie. She used apples from her own tree and a secret recipe that had been in the family for generations.
+
+        Question: Where did Grandma get the apples for her pie?
+
+        Options: ["From the store", "From her neighbor", "From her own tree", "From the market"]
+
+        Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:
+
+        2
+
+        Read the following passage and answer the question.
+
+        Passage: The space rocket launched at midnight. All the scientists watched as it flew up into the dark sky, heading toward the moon.
+
+        Question: When did the rocket launch?
+
+        Options: ["At noon", "At midnight", "In the morning", "At sunset"]
+
+        Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:
+
+        1
+
+    """"" + "Read the following passage and answer the question.\n\nPassage: {context}\n\nQuestion: {question}\n\n Options: {choices_formatted}\n\n Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:"
     }
     
     def __init__(self, template_name: str = "basic", custom_template: Optional[str] = None, choice_format: str = "letter"):

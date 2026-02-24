@@ -144,7 +144,8 @@ class RMSNorm(nn.Module):
         Returns:
             Normalized tensor of same shape
         """
-        RMS_x = torch.sqrt(torch.mean(torch.pow(x,2), dim=-1, keepdim=True) + self.eps)
+        x = x.to(self.weight.device)
+        RMS_x = torch.sqrt(torch.mean(torch.pow(x,2), dim=-1, keepdim=True) + self.eps).to(x.device)
 
         return x / RMS_x * self.weight
 
@@ -458,9 +459,10 @@ def scaled_dot_product_attention(
     
     #We need to get the correct keys.
     scores = torch.matmul(Q, K.mT) / math.sqrt(d_k)
-    
+
+    scores = scores.to(Q.device)
     if mask is not None:
-        scores = torch.where(mask, scores, torch.tensor(float(-1e10)))
+        scores = torch.where(mask.to(Q.device), scores, torch.tensor(float(-1e10)).to(Q.device)).to(Q.device)
     
     scores = torch.softmax(scores, dim=-1)
 
@@ -523,7 +525,7 @@ class MultiHeadSelfAttention(nn.Module):
         q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
 
         device = torch.get_default_device()
-        mask = self._create_causal_mask(seq_len, device)
+        mask = self._create_causal_mask(seq_len, device).to(self.device)
 
         #Split q, k, v, mask into different heads?
         q_heads, k_heads, v_heads = torch.split(q, self.d_k, dim=-1), torch.split(k, self.d_k, dim=-1), torch.split(v, self.d_k, dim=-1)
@@ -689,7 +691,8 @@ class TransformerBlock(nn.Module):
         Returns:
             Output tensor of shape (batch, seq_len, d_model)
         """
-        x = x + self.attn(self.ln1(x))
+        h = self.attn(self.ln1(x))
+        x = x.to(h.device) + h 
         x = x + self.ffn(self.ln2(x))
 
         return x

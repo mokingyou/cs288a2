@@ -68,6 +68,8 @@ class Trainer:
         total_loss = 0.0
         num_batches = 0
         for batch in self.train_dataloader:
+            #TODO my code
+            #batch = batch.to(self.device)
             self.optimizer.zero_grad()
             loss = self.compute_loss_fn(batch, self.model)
             loss.backward()
@@ -87,6 +89,7 @@ class Trainer:
         total_loss = 0.0
         num_batches = 0
         for batch in self.val_dataloader:
+            #batch = batch.to(self.device)
             loss = self.compute_loss_fn(batch, self.model)
             total_loss += loss.item()
             num_batches += 1

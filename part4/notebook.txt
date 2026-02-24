@@ -1,0 +1,8 @@
+Okay so basically we want to finetune and prompt our model so that it
+outperforms the baseline model. I think that roughly, we could just provide
+few-shot prompts and increase model-size, etc. since that should help.
+
+We could also change the datasets. Add more data or add more informative data.
+Maybe we could train not on the full tinystories but also train on the qa data?
+
+

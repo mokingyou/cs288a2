@@ -96,6 +96,22 @@ CONFIGS = {
         "finetune_epochs": 15,
         "batch_size": 16,
         "lr": 1e-4,
+    },
+    "micah": {
+        # Medium model for good quality - ~50M parameters
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
+        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
+        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "vocab_size": 8192,
+        "d_model": 512,
+        "num_layers": 8,
+        "num_heads": 8,
+        "d_ff": 2048,
+        "context_length": 512,
+        "pretrain_epochs": 5,
+        "finetune_epochs": 5,
+        "batch_size": 16,
+        "lr": 1e-4,
     }
 }
 
@@ -158,7 +174,7 @@ def train_tokenizer(pretrain_data: Path, vocab_size: int) -> tuple:
 def pretrain_lm(
     tokenizer,
     config: dict,
-    device: str = "cpu",
+    device: str = "mps",
 ) -> TransformerLM:
     """
     Pretrain a Transformer language model on TinyStories.
@@ -187,7 +203,7 @@ def pretrain_lm(
         num_heads=config["num_heads"],
         d_ff=config["d_ff"],
     ).to(device)
-    
+ 
     num_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel architecture:")
     print(f"  d_model: {config['d_model']}")
@@ -335,7 +351,7 @@ def finetune_qa(
         hidden_size=pretrained_model.d_model,
         num_choices=4,
         pooling="last",  # Use last token representation
-        freeze_backbone=False,  # Fine-tune entire model
+        freeze_backbone=True,  # Fine-tune entire model
     ).to(device)
     
     print(f"\nQA model parameters: {sum(p.numel() for p in qa_model.parameters()):,}")
