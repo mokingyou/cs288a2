@@ -110,7 +110,7 @@ CONFIGS = {
         "context_length": 512,
         "pretrain_epochs": 5,
         "finetune_epochs": 5,
-        "batch_size": 16,
+        "batch_size": 64,
         "lr": 1e-4,
     }
 }
@@ -203,6 +203,8 @@ def pretrain_lm(
         num_heads=config["num_heads"],
         d_ff=config["d_ff"],
     ).to(device)
+
+    model = torch.compile(model)
  
     num_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel architecture:")
@@ -221,6 +223,8 @@ def pretrain_lm(
         max_length=config["context_length"],
         stride=config["context_length"] // 2,
         shuffle=True,
+        num_workers=2,
+        persistent_workers=True,
     )
     
     print(f"\nTraining data:")
@@ -353,6 +357,7 @@ def finetune_qa(
         pooling="last",  # Use last token representation
         freeze_backbone=True,  # Fine-tune entire model
     ).to(device)
+    qa_model = torch.compile(qa_model)
     
     print(f"\nQA model parameters: {sum(p.numel() for p in qa_model.parameters()):,}")
     
@@ -363,10 +368,12 @@ def finetune_qa(
     train_dataloader = create_qa_dataloader(
         data=train_data,
         tokenizer=tokenizer,
-        batch_size=config["batch_size"],
+        batch_size=config["batch_size"]/ 4, #TODO the batch_size for the finetune is a lot lower
         max_length=config["context_length"],
         num_choices=4,
         shuffle=True,
+        num_workers=2,
+        persistent_workers=True,
     )
     
     print(f"\nTraining data: {config['qa_train']}")
@@ -435,6 +442,8 @@ def evaluate_finetuned(
         max_length=config["context_length"],
         num_choices=4,
         shuffle=False,
+        num_workers=2,
+        persistent_workers=True,
     )
     
     print(f"\nValidation examples: {len(dev_data)}")

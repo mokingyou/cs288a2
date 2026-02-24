@@ -57,8 +57,8 @@ class Trainer:
         self.val_losses = []
     
     def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module) -> torch.Tensor:
-        input_ids = batch["input_ids"].to(self.config.device)
-        labels = batch["labels"].to(self.config.device)
+        input_ids = batch["input_ids"].to(self.config.device, non_blocking=True)
+        labels = batch["labels"].to(self.config.device, non_blocking=True)
         logits = model(input_ids)
         batch_size, seq_len, vocab_size = logits.shape
         return cross_entropy(logits.view(-1, vocab_size), labels.view(-1))
@@ -67,18 +67,33 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         num_batches = 0
+
+        t_prev = time.perf_counter()
         for batch in self.train_dataloader:
             #TODO my code
-            #batch = batch.to(self.device)
-            self.optimizer.zero_grad()
+            data_time= time.perf_counter() - t_prev
+            t0 = time.perf_counter
+
+            self.optimizer.zero_grad(set_to_none=True)
             loss = self.compute_loss_fn(batch, self.model)
             loss.backward()
-            gradient_clipping(self.model.parameters(), self.config.max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
             self.optimizer.step()
             self.scheduler.step()
+
+            compute_time = time.perf_counter - t0
             total_loss += loss.item()
             num_batches += 1
             self.global_step += 1
+            
+            t_prev = time.perf_counter()
+            if num_batches % 100 == 0:
+                print(
+                    f"Total time for batch #{num_batches} is {compute_time + data_time:.2f}s"
+                    f"compute time: {compute_time:2f}s"
+                    f"data time: {data_time:2f}s"
+                    )
+
         return total_loss / num_batches if num_batches > 0 else 0.0
     
     @torch.no_grad()
@@ -107,9 +122,9 @@ class Trainer:
 
 
 def compute_qa_loss(batch: Dict[str, torch.Tensor], model: nn.Module, device: str = "cuda") -> torch.Tensor:
-    input_ids = batch["input_ids"].to(device)
-    attention_mask = batch["attention_mask"].to(device)
-    labels = batch["labels"].to(device)
+    input_ids = batch["input_ids"].to(device, non_blocking=True)
+    attention_mask = batch["attention_mask"].to(device, non_blocking=True)
+    labels = batch["labels"].to(device, non_blocking=True)
     logits = model(input_ids, attention_mask)
     return cross_entropy(logits, labels)
 
