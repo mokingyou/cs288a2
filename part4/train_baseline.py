@@ -8,6 +8,11 @@ This script demonstrates how to:
 3. Fine-tune the model for multiple-choice QA
 4. Evaluate using both prompting and fine-tuning approaches
 
+What are we doing here? Basically we want our model to be good 
+at MCQ's, so we're using the tokenizer that we built and training our model
+on the dataset and then testing two different types of post-training,
+fine-tuning and prompting, trying to see if we can improve from the baseline
+
 Students can use this as a reference for their implementations.
 
 Usage:
@@ -475,7 +480,10 @@ Examples:
     
     # Device
     if args.device:
-        device = args.device
+        if args.device == "mps":
+            device = torch.device("mps")
+        else:
+            device = args.device
     else:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     

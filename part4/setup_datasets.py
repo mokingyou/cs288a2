@@ -206,7 +206,7 @@ def main():
     tinystories_path = download_tinystories()
     
     # Download SQuAD
-    squad_paths = download_squad()
+    #squad_paths = download_squad()
     
     print("\n" + "=" * 60)
     print("SETUP COMPLETE")
