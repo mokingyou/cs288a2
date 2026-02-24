@@ -72,7 +72,7 @@ class Trainer:
         for batch in self.train_dataloader:
             #TODO my code
             data_time= time.perf_counter() - t_prev
-            t0 = time.perf_counter
+            t0 = time.perf_counter()
 
             self.optimizer.zero_grad(set_to_none=True)
             loss = self.compute_loss_fn(batch, self.model)
@@ -81,7 +81,7 @@ class Trainer:
             self.optimizer.step()
             self.scheduler.step()
 
-            compute_time = time.perf_counter - t0
+            compute_time = time.perf_counter() - t0
             total_loss += loss.item()
             num_batches += 1
             self.global_step += 1
