@@ -525,7 +525,7 @@ class MultiHeadSelfAttention(nn.Module):
         q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
 
         device = torch.get_default_device()
-        mask = self._create_causal_mask(seq_len, device).to(self.device)
+        mask = self._create_causal_mask(seq_len, device).to(q.device)
 
         #Split q, k, v, mask into different heads?
         q_heads, k_heads, v_heads = torch.split(q, self.d_k, dim=-1), torch.split(k, self.d_k, dim=-1), torch.split(v, self.d_k, dim=-1)
