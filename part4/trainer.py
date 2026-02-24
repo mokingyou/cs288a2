@@ -87,7 +87,7 @@ class Trainer:
             self.global_step += 1
             
             t_prev = time.perf_counter()
-            if num_batches % 100 == 0:
+            if num_batches == 1:
                 print(
                     f"Total time for batch #{num_batches} is {compute_time + data_time:.2f}s"
                     f"compute time: {compute_time:2f}s"

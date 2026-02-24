@@ -368,7 +368,7 @@ def finetune_qa(
     train_dataloader = create_qa_dataloader(
         data=train_data,
         tokenizer=tokenizer,
-        batch_size=config["batch_size"]/ 4, #TODO the batch_size for the finetune is a lot lower
+        batch_size=int(config["batch_size"]/ 4), #TODO the batch_size for the finetune is a lot lower
         max_length=config["context_length"],
         num_choices=4,
         shuffle=True,
