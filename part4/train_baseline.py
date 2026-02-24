@@ -100,8 +100,8 @@ CONFIGS = {
     "micah": {
         # Medium model for good quality - ~50M parameters
         "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
-        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 8192,
         "d_model": 512,
         "num_layers": 8,
