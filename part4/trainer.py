@@ -97,6 +97,7 @@ class Trainer:
     
     def train(self) -> Dict[str, Any]:
         for epoch in range(self.config.num_epochs):
+            print(f"Completed epoch #{epoch}")
             train_loss = self.train_epoch()
             self.train_losses.append(train_loss)
             if self.val_dataloader:
