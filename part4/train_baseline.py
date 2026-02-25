@@ -103,7 +103,7 @@ CONFIGS = {
         # Small model, larger data  - ~10M parameters
         "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
-        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
+        #"qa_test": Path(__file__).parent / "fixtures/squad_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 4096,
         "d_model": 256,
