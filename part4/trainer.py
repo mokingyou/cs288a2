@@ -123,7 +123,7 @@ class Trainer:
         total_loss = 0.0
         num_batches = 0
         for batch in self.val_dataloader:
-            if True:
+            if False:
                 inp = batch["input_ids"]
                 print("min/max token id:", inp.min().item(), inp.max().item())
                 print("embed rows:", self.model.transformer.token_embeddings.weight.shape[0])

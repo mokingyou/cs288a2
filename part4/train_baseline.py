@@ -112,7 +112,7 @@ CONFIGS = {
         "d_ff": 2048,
         "context_length": 512,
         "pretrain_epochs": 5,
-        "finetune_epochs": 15,
+        "finetune_epochs": 5,
         "batch_size": 16,
         "lr": 1e-4,
     },
@@ -528,6 +528,8 @@ Examples:
     parser.add_argument("--medium", action="store_true", help="Medium model (default)")
     parser.add_argument("--micah", action="store_true", help="Micah's parameters (default)")
     parser.add_argument("--device", type=str, default=None, help="Device (auto-detect if not set)")
+
+    parser.add_argument("--batch_size", type=int, default=32, help="Device (auto-detect if not set)")
     args = parser.parse_args()
     
     # Select config
@@ -544,7 +546,10 @@ Examples:
         config_name = "micah"
     
     config = CONFIGS[config_name]
-    
+
+    if args.batch_size:
+        config["batch_size"] = args.batch_size
+        
     # Check datasets exist
     if not config["pretrain_data"].exists():
         print(f"Dataset not found: {config['pretrain_data']}")

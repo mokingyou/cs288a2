@@ -59,7 +59,7 @@ class MultipleChoiceQADataset(Dataset):
         answer = example.get("answer", -1)
         if answer == -1:
             answer = 0
-        
+            
         all_input_ids = []
         all_attention_masks = []
         
