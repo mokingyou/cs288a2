@@ -369,9 +369,6 @@ def finetune_qa(
     with open(config["qa_train"]) as f:
         train_data = json.load(f)
 
-    if "qa_test" in config:
-        with open(config["qa_test"]) as f:
-            test_data = json.load(f)
     
     train_dataloader = create_qa_dataloader(
         data=train_data,
@@ -383,25 +380,13 @@ def finetune_qa(
         num_workers=2,
         persistent_workers=True,
     )
-
-    test_dataloader = create_qa_dataloader(
-        data=test_data,
-        tokenizer=tokenizer,
-        batch_size=int(config["batch_size"]/ 4), #TODO the batch_size for the finetune is a lot lower
-        max_length=config["context_length"],
-        num_choices=4,
-        shuffle=True,
-        num_workers=2,
-        persistent_workers=True,
-    )
+    
     
     print(f"\nTraining data: {config['qa_train']}")
     print(f"Training examples: {len(train_data)}")
     print(f"Batches/epoch: {len(train_dataloader)}")
     
-    print(f"\nTest data: {config['qa_test']}")
-    print(f"Test examples: {len(test_data)}")
-    print(f"Batches/epoch: {len(test_dataloader)}")
+    
 
     # Training config
     train_config = TrainingConfig(
@@ -415,6 +400,29 @@ def finetune_qa(
         patience=1,
     )
     
+    test_dataloader = None
+    if "qa_test" in config:
+        with open(config["qa_test"]) as f:
+            test_data = json.load(f)
+        
+
+        test_dataloader = create_qa_dataloader(
+            data=test_data,
+            tokenizer=tokenizer,
+            batch_size=int(config["batch_size"]/ 4), #TODO the batch_size for the finetune is a lot lower
+            max_length=config["context_length"],
+            num_choices=4,
+            shuffle=True,
+            num_workers=2,
+            persistent_workers=True,
+        )
+        print(f"\nTest data: {config['qa_test']}")
+        print(f"Test examples: {len(test_data)}")
+        print(f"Batches/epoch: {len(test_dataloader)}")
+
+    
+        
+
     # Train
     trainer = Trainer(
         model=qa_model,
