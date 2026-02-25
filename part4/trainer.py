@@ -56,7 +56,11 @@ class Trainer:
         self.train_losses = []
         self.val_losses = []
         self.scaler = torch.amp.GradScaler("cuda" ,enabled=self.config.use_amp)
-    
+        if type(self.config.device) == str:
+            self.device_type = self.config.device
+        else:
+            self.device_type = self.config.device.type
+        
     def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module) -> torch.Tensor:
         input_ids = batch["input_ids"].to(self.config.device, non_blocking=True)
         labels = batch["labels"].to(self.config.device, non_blocking=True)
@@ -68,10 +72,7 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         num_batches = 0
-        if type(self.config.device) == str:
-            device_type = self.config.device
-        else:
-            device_type = self.config.device.type
+        
 
         t_prev = time.perf_counter()
         for batch in self.train_dataloader:
@@ -80,7 +81,7 @@ class Trainer:
             t0 = time.perf_counter()
             
             
-            with torch.autocast(device_type=device_type, dtype=torch.float16, enabled=self.config.use_amp):
+            with torch.autocast(device_type=self.device_type, dtype=torch.float16, enabled=self.config.use_amp):
                 loss = self.compute_loss_fn(batch, self.model)
 
             self.scaler.scale(loss).backward()
@@ -110,14 +111,15 @@ class Trainer:
     
     @torch.no_grad()
     def evaluate(self) -> float:
+        print("We're failing the validation?")
         if self.val_dataloader is None:
             return 0.0
         self.model.eval()
         total_loss = 0.0
         num_batches = 0
         for batch in self.val_dataloader:
-            #batch = batch.to(self.device)
-            loss = self.compute_loss_fn(batch, self.model)
+            with torch.autocast(device_type=self.device_type, dtype=torch.float16, enabled=self.config.use_amp):
+                loss = self.compute_loss_fn(batch, self.model)
             total_loss += loss.item()
             num_batches += 1
         return total_loss / num_batches if num_batches > 0 else 0.0
