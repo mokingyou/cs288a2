@@ -123,12 +123,13 @@ class Trainer:
         total_loss = 0.0
         num_batches = 0
         for batch in self.val_dataloader:
-            inp = batch["input_ids"]
-            print("min/max token id:", inp.min().item(), inp.max().item())
-            print("embed rows:", self.model.token_embeddings.weight.shape[0])
+            if False:
+                inp = batch["input_ids"]
+                print("min/max token id:", inp.min().item(), inp.max().item())
+                print("embed rows:", self.model.transformer.token_embeddings.weight.shape[0])
 
-            y = batch["labels"]
-            print("labels min/max:", y.min().item(), y.max().item())
+                y = batch["labels"]
+                print("labels min/max:", y.min().item(), y.max().item())
 
             with torch.autocast(device_type=self.device_type, dtype=torch.float16, enabled=self.config.use_amp):
                 loss = self.compute_loss_fn(batch, self.model)
