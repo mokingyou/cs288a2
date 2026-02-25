@@ -11,12 +11,16 @@ from typing import List, Dict, Any, Optional, Tuple
 
 class PretrainingDataset(Dataset):
     def __init__(self, file_path: str | Path, tokenizer, max_length: int = 256, stride: int | None = None):
-        self.tokenizer = tokenizer
         self.max_length = max_length
         self.stride = stride or max_length
+        
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
-        self.token_ids = tokenizer.encode(text)
+        
+        # Tokenize ONCE during initialization
+        tokens = tokenizer.encode(text)
+        self.token_ids = torch.tensor(tokens, dtype=torch.long)
+        
         if len(self.token_ids) <= max_length:
             self.num_sequences = 1
         else:
@@ -27,58 +31,77 @@ class PretrainingDataset(Dataset):
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         start_idx = idx * self.stride
-        end_idx = min(start_idx + self.max_length + 1, len(self.token_ids))
-        sequence = self.token_ids[start_idx:end_idx]
-        if len(sequence) < self.max_length + 1:
-            sequence = sequence + [0] * (self.max_length + 1 - len(sequence))
-        input_ids = torch.tensor(sequence[:-1], dtype=torch.long)
-        labels = torch.tensor(sequence[1:], dtype=torch.long)
-        return {"input_ids": input_ids, "labels": labels}
-
+        end_idx = start_idx + self.max_length + 1
+        
+        # Slicing a tensor is significantly faster than tokenizing strings
+        chunk = self.token_ids[start_idx:end_idx]
+        
+        # Handle final partial batch with padding
+        if len(chunk) < self.max_length + 1:
+            padding = torch.zeros(self.max_length + 1 - len(chunk), dtype=torch.long)
+            chunk = torch.cat([chunk, padding])
+            
+        return {
+            "input_ids": chunk[:-1], 
+            "labels": chunk[1:]
+        }
 
 class MultipleChoiceQADataset(Dataset):
     def __init__(self, data: List[Dict[str, Any]], tokenizer, max_length: int = 256, num_choices: int = 4):
-        self.data = data
-        self.tokenizer = tokenizer
         self.max_length = max_length
         self.num_choices = num_choices
+        
+        self.all_input_ids = []
+        self.all_attention_masks = []
+        self.labels = []
+
+        print(f"Pre-tokenizing {len(data)} examples...")
+        
+        for example in data:
+            context = example["context"]
+            question = example["question"]
+            choices = example["choices"]
+            answer = example.get("answer", 0)
+            
+            choice_ids = []
+            choice_masks = []
+            
+            for choice in choices:
+                text = f"{context}\n\nQuestion: {question}\n\nAnswer: {choice}"
+                
+                # Use tokenizer.encode_plus for easier padding/masking
+                encoded = tokenizer.encode_plus(
+                    text,
+                    add_special_tokens=True,
+                    max_length=self.max_length,
+                    padding='max_length',
+                    truncation=True,
+                    return_tensors='pt'
+                )
+                
+                choice_ids.append(encoded['input_ids'])
+                choice_masks.append(encoded['attention_mask'])
+            
+            # Stack choices for this specific example
+            self.all_input_ids.append(torch.cat(choice_ids, dim=0))
+            self.all_attention_masks.append(torch.cat(choice_masks, dim=0))
+            self.labels.append(answer)
+
+        # Convert lists to massive tensors to reside in RAM
+        self.all_input_ids = torch.stack(self.all_input_ids)
+        self.all_attention_masks = torch.stack(self.all_attention_masks)
+        self.labels = torch.tensor(self.labels, dtype=torch.long)
+        print("Pre-tokenization complete.")
     
     def __len__(self) -> int:
-        return len(self.data)
-    
-    def _format_choice_input(self, context: str, question: str, choice: str) -> str:
-        return f"{context}\n\nQuestion: {question}\n\nAnswer: {choice}"
+        return len(self.labels)
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        example = self.data[idx]
-        context = example["context"]
-        question = example["question"]
-        choices = example["choices"]
-
-        #Hard code to zero for testing
-        answer = example.get("answer", -1)
-        if answer == -1:
-            answer = 0
-            
-        all_input_ids = []
-        all_attention_masks = []
-        
-        for choice in choices:
-            text = self._format_choice_input(context, question, choice)
-            token_ids = self.tokenizer.encode(text)
-            if len(token_ids) > self.max_length:
-                token_ids = token_ids[:self.max_length]
-            attention_mask = [1] * len(token_ids)
-            padding_length = self.max_length - len(token_ids)
-            token_ids = token_ids + [0] * padding_length
-            attention_mask = attention_mask + [0] * padding_length
-            all_input_ids.append(token_ids)
-            all_attention_masks.append(attention_mask)
-        
+        # __getitem__ is now just a lightning-fast memory lookup
         return {
-            "input_ids": torch.tensor(all_input_ids, dtype=torch.long),
-            "attention_mask": torch.tensor(all_attention_masks, dtype=torch.long),
-            "labels": torch.tensor(answer, dtype=torch.long),
+            "input_ids": self.all_input_ids[idx],
+            "attention_mask": self.all_attention_masks[idx],
+            "labels": self.labels[idx],
         }
     
     @classmethod
