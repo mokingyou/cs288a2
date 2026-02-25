@@ -171,9 +171,8 @@ class Tokenizer:
             if bytes_seq in self.inverse_vocab:
                 token_ids.append(self.inverse_vocab[bytes_seq])
             else:
-                individual_bytes = []
-                #What do we do in the case when we fallback?
-                token_ids.append(bytes_seq)
+                for b in bytes_seq:
+                    token_ids.append(self.inverse_vocab[bytes([b])])
 
         return token_ids
 
