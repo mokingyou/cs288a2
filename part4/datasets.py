@@ -56,7 +56,9 @@ class MultipleChoiceQADataset(Dataset):
         choices = example["choices"]
 
         #Hard code to zero for testing
-        answer = example.get("answer", 0)
+        answer = example.get("answer", -1)
+        if answer == -1:
+            answer = 0
         
         all_input_ids = []
         all_attention_masks = []
