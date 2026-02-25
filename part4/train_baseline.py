@@ -53,7 +53,7 @@ CONFIGS = {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
         "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        "qa_test": Path(__file__).parent / "fixtures/qa_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/qa_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
         "vocab_size": 512,
         "d_model": 128,
@@ -68,9 +68,9 @@ CONFIGS = {
     },
     "small": {
         # Small model, larger data - ~10M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_full.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
-        
+        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 4096,
         "d_model": 256,
@@ -85,7 +85,7 @@ CONFIGS = {
     },
     "medium": {
         # Medium model for good quality - ~50M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_full.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 8192,
@@ -101,9 +101,9 @@ CONFIGS = {
     },
     "micah": {
         # Small model, larger data  - ~10M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_500k.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
-        #"qa_test": Path(__file__).parent / "fixtures/squad_test.json",
+        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 4096,
         "d_model": 256,

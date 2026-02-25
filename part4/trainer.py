@@ -60,7 +60,15 @@ class Trainer:
         self.use_amp = self.device_type == "cuda"
         self.scaler = torch.amp.GradScaler(enabled=self.use_amp)
 
-    def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module) -> torch.Tensor:
+    def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module, print: bool = False) -> torch.Tensor:
+        if print:
+            inp = batch["input_ids"]
+            print("min/max token id:", inp.min().item(), inp.max().item())
+            print("embed rows:", model.embed.weight.shape[0])
+
+            y = batch["labels"]
+            print("labels min/max:", y.min().item(), y.max().item())
+
         input_ids = batch["input_ids"].to(self.config.device, non_blocking=True)
         labels = batch["labels"].to(self.config.device, non_blocking=True)
         
@@ -82,9 +90,9 @@ class Trainer:
             if self.use_amp:
                 ctx = torch.autocast(device_type="cuda", dtype=torch.float16) 
                 with ctx:
-                    loss = self.compute_loss_fn(batch, self.model)
+                    loss = self.compute_loss_fn(batch, self.model, print=False)
             else:
-                loss = self.compute_loss_fn(batch, self.model)
+                loss = self.compute_loss_fn(batch, self.model, print=False)
 
             if self.use_amp:
                 self.scaler.scale(loss).backward()
@@ -117,7 +125,6 @@ class Trainer:
     
     @torch.no_grad()
     def evaluate(self) -> float:
-        print("We're failing the validation?")
         if self.val_dataloader is None:
             return 0.0
         self.model.eval()
@@ -125,7 +132,7 @@ class Trainer:
         num_batches = 0
         for batch in self.val_dataloader:
             with torch.autocast(device_type=self.device_type, dtype=torch.float16, enabled=self.config.use_amp):
-                loss = self.compute_loss_fn(batch, self.model)
+                loss = self.compute_loss_fn(batch, self.model, print=True)
             total_loss += loss.item()
             num_batches += 1
         return total_loss / num_batches if num_batches > 0 else 0.0
