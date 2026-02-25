@@ -358,7 +358,7 @@ def finetune_qa(
         transformer_lm=pretrained_model,
         hidden_size=pretrained_model.d_model,
         num_choices=4,
-        pooling="mean",  # Use mean token representation
+        pooling="last",  # Use mean token representation
         freeze_backbone=True,  # Fine-tune only the head
     ).to(device)
     qa_model = torch.compile(qa_model)
