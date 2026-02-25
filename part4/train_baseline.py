@@ -369,8 +369,9 @@ def finetune_qa(
     with open(config["qa_train"]) as f:
         train_data = json.load(f)
 
-    with open(config["qa_test"]) as f:
-        test_data = json.load(f)
+    if "qa_test" in config:
+        with open(config["qa_test"]) as f:
+            test_data = json.load(f)
     
     train_dataloader = create_qa_dataloader(
         data=train_data,
