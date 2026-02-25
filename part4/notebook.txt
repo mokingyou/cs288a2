@@ -16,3 +16,13 @@ Mixed precision
 Use small model
 Plot validation losses and use early stopping
 Retune prompts to match qa
+
+New round:
+
+
+
+Reduce prompt length >>> yes
+
+Change position of autocast? >>> no
+Remove torch.compile >>> not yet
+Remove test_set to see what's happening >>> not yet

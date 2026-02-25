@@ -55,15 +55,15 @@ class Trainer:
         self.best_val_loss = float("inf")
         self.train_losses = []
         self.val_losses = []
-        self.scaler = torch.amp.GradScaler("cuda" ,enabled=self.config.use_amp)
-        if type(self.config.device) == str:
-            self.device_type = self.config.device
-        else:
-            self.device_type = self.config.device.type
         
+        self.device_type = config.device.type if isinstance(config.device, torch.device) else str(config.device)
+        self.use_amp = self.device_type == "cuda"
+        self.scaler = torch.amp.GradScaler(enabled=self.use_amp)
+
     def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module) -> torch.Tensor:
         input_ids = batch["input_ids"].to(self.config.device, non_blocking=True)
         labels = batch["labels"].to(self.config.device, non_blocking=True)
+        
         logits = model(input_ids)
         batch_size, seq_len, vocab_size = logits.shape
         return cross_entropy(logits.view(-1, vocab_size), labels.view(-1))
@@ -72,7 +72,6 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         num_batches = 0
-        
 
         t_prev = time.perf_counter()
         for batch in self.train_dataloader:
@@ -80,17 +79,24 @@ class Trainer:
             data_time= time.perf_counter() - t_prev
             t0 = time.perf_counter()
             
-            
-            with torch.autocast(device_type=self.device_type, dtype=torch.float16, enabled=self.config.use_amp):
+            if self.use_amp:
+                ctx = torch.autocast(device_type="cuda", dtype=torch.float16) 
+                with ctx:
+                    loss = self.compute_loss_fn(batch, self.model)
+            else:
                 loss = self.compute_loss_fn(batch, self.model)
 
-            self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+            if self.use_amp:
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+                self.optimizer.step()
 
-            self.scaler.step(self.optimizer)
-            
-            self.scaler.update()
             self.optimizer.zero_grad(set_to_none=True)
             self.scheduler.step()
             

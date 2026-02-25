@@ -53,7 +53,7 @@ CONFIGS = {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
         "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        #"qa_test": Path(__file__).parent / "fixtures/qa_test.json",
+        "qa_test": Path(__file__).parent / "fixtures/qa_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
         "vocab_size": 512,
         "d_model": 128,
@@ -533,10 +533,7 @@ Examples:
     
     # Device
     if args.device:
-        if args.device == "mps":
-            device = torch.device("mps")
-        else:
-            device = args.device
+        device = args.device
     else:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     

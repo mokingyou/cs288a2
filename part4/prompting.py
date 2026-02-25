@@ -28,13 +28,6 @@ class PromptTemplate:
       "cholera",
       "between June and September"]
         Answer: 0
-        Context: The Broncos defeated the Pittsburgh Steelers in the divisional round, 23\u201316, by scoring 11 points in the final three minutes of the game. They then beat the defending Super Bowl XLIX champion New England Patriots in the AFC Championship Game, 20\u201318, by intercepting a pass on New England's 2-point conversion attempt with 17 seconds left on the clock. Despite Manning's problems with interceptions during the season, he didn't throw any in their two playoff games.
-        Question: How many seconds were left in the game when the Broncos intercepted the pass that won the game?
-        Options: "Pittsburgh Steelers",
-      "South African Vice Consul Duke Kent-Brown.",
-      "1%",
-      "17"
-        Answer: 3
     """"" + "\Context: {context}\nQuestion: {question}\n Options: {choices_formatted}\n Answer:"
     }
     
