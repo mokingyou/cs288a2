@@ -49,6 +49,23 @@ from part4.trainer import Trainer, TrainingConfig, create_qa_loss_fn
 # =============================================================================
 
 CONFIGS = {
+    "tiny": {
+        # Small config for quick testing
+        "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
+        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/qa_test.json",
+        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "vocab_size": 128,
+        "d_model": 64,
+        "num_layers": 4,
+        "num_heads": 4,
+        "d_ff": 128,
+        "context_length": 512,
+        "pretrain_epochs": 1,
+        "finetune_epochs": 1,
+        "batch_size": 32,
+        "lr": 1e-3,
+    },
     "quick": {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
@@ -505,6 +522,7 @@ Examples:
     python part4/train_baseline.py --medium    # Medium model (~30 min)
         """
     )
+    parser.add_argument("--tiny", action="store_true", help="Smallest test with eensy beensy model")
     parser.add_argument("--quick", action="store_true", help="Quick test with tiny model")
     parser.add_argument("--small", action="store_true", help="Small model")
     parser.add_argument("--medium", action="store_true", help="Medium model (default)")
@@ -513,7 +531,10 @@ Examples:
     args = parser.parse_args()
     
     # Select config
-    if args.quick:
+    
+    if args.tiny:
+        config_name = "tiny"
+    elif args.quick:
         config_name = "quick"
     elif args.small:
         config_name = "small"
