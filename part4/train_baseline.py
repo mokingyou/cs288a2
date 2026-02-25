@@ -52,9 +52,9 @@ CONFIGS = {
     "tiny": {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
-        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        "qa_test": Path(__file__).parent / "fixtures/qa_test.json",
-        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
+        "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 128,
         "d_model": 64,
         "num_layers": 4,
