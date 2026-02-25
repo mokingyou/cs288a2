@@ -398,7 +398,7 @@ def finetune_qa(
     print(f"Training examples: {len(train_data)}")
     print(f"Batches/epoch: {len(train_dataloader)}")
     
-    print(f"\Test data: {config['qa_test']}")
+    print(f"\nTest data: {config['qa_test']}")
     print(f"Test examples: {len(test_data)}")
     print(f"Batches/epoch: {len(test_dataloader)}")
 

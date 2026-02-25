@@ -68,6 +68,10 @@ class Trainer:
         self.model.train()
         total_loss = 0.0
         num_batches = 0
+        if type(self.config.device) == str:
+            device_type = self.config.device
+        else:
+            device_type = self.config.device.type
 
         t_prev = time.perf_counter()
         for batch in self.train_dataloader:
@@ -75,7 +79,8 @@ class Trainer:
             data_time= time.perf_counter() - t_prev
             t0 = time.perf_counter()
             
-            with torch.autocast(device_type=self.config.device.type, dtype=torch.float16, enabled=self.config.use_amp):
+            
+            with torch.autocast(device_type=device_type, dtype=torch.float16, enabled=self.config.use_amp):
                 loss = self.compute_loss_fn(batch, self.model)
 
             self.scaler.scale(loss).backward()
