@@ -110,7 +110,7 @@ CONFIGS = {
         "context_length": 512,
         "pretrain_epochs": 5,
         "finetune_epochs": 5,
-        "batch_size": 64,
+        "batch_size": 16,
         "lr": 1e-4,
     }
 }
