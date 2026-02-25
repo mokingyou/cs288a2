@@ -74,6 +74,18 @@ def download_tinystories():
     
     print(f"Also created 100k subset: {subset_path}")
     
+    # Also create a smaller subset for quick testing
+    subset_path = FIXTURES_DIR / "tinystories_500k.txt"
+    with open(subset_path, "w", encoding="utf-8") as f:
+        for i, example in enumerate(dataset):
+            if i >= 500000:
+                break
+            story = example["text"].strip()
+            f.write(story)
+            f.write("\n<|endoftext|>\n")
+    
+    print(f"Also created 500k subset: {subset_path}")
+
     return output_path
 
 

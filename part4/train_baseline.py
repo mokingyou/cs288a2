@@ -53,6 +53,7 @@ CONFIGS = {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
         "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/qa_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
         "vocab_size": 512,
         "d_model": 128,
@@ -61,14 +62,15 @@ CONFIGS = {
         "d_ff": 512,
         "context_length": 256,
         "pretrain_epochs": 3,
-        "finetune_epochs": 5,
+        "finetune_epochs": 15,
         "batch_size": 32,
         "lr": 1e-3,
     },
     "small": {
         # Small model, larger data - ~10M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_full.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 4096,
         "d_model": 256,
@@ -77,7 +79,7 @@ CONFIGS = {
         "d_ff": 1024,
         "context_length": 512,
         "pretrain_epochs": 3,
-        "finetune_epochs": 10,
+        "finetune_epochs": 5,
         "batch_size": 32,
         "lr": 3e-4,
     },
@@ -98,20 +100,21 @@ CONFIGS = {
         "lr": 1e-4,
     },
     "micah": {
-        # Medium model for good quality - ~50M parameters
+        # Small model, larger data  - ~10M parameters
         "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
-        "vocab_size": 8192,
-        "d_model": 512,
-        "num_layers": 8,
+        "vocab_size": 4096,
+        "d_model": 256,
+        "num_layers": 6,
         "num_heads": 8,
-        "d_ff": 2048,
-        "context_length": 512,
-        "pretrain_epochs": 5,
+        "d_ff": 1024,
+        "context_length": 384,
+        "pretrain_epochs": 1,
         "finetune_epochs": 5,
-        "batch_size": 16,
-        "lr": 1e-4,
+        "batch_size": 32,
+        "lr": 3e-4,
     }
 }
 
@@ -241,6 +244,7 @@ def pretrain_lm(
         max_grad_norm=1.0,
         device=device,
         log_interval=max(1, len(dataloader) // 5),
+        use_amp=True
     )
     
     # Train
@@ -302,7 +306,7 @@ def evaluate_prompting(
     print(f"\nValidation examples: {len(dev_data)}")
     
     # Create pipeline
-    template = PromptTemplate(template_name="simple")
+    template = PromptTemplate(template_name="micah")
     pipeline = PromptingPipeline(
         model=model,
         tokenizer=tokenizer,
@@ -354,8 +358,8 @@ def finetune_qa(
         transformer_lm=pretrained_model,
         hidden_size=pretrained_model.d_model,
         num_choices=4,
-        pooling="last",  # Use last token representation
-        freeze_backbone=True,  # Fine-tune entire model
+        pooling="mean",  # Use mean token representation
+        freeze_backbone=True,  # Fine-tune only the head
     ).to(device)
     qa_model = torch.compile(qa_model)
     
@@ -364,9 +368,23 @@ def finetune_qa(
     # Load training data
     with open(config["qa_train"]) as f:
         train_data = json.load(f)
+
+    with open(config["qa_test"]) as f:
+        test_data = json.load(f)
     
     train_dataloader = create_qa_dataloader(
         data=train_data,
+        tokenizer=tokenizer,
+        batch_size=int(config["batch_size"]/ 4), #TODO the batch_size for the finetune is a lot lower
+        max_length=config["context_length"],
+        num_choices=4,
+        shuffle=True,
+        num_workers=2,
+        persistent_workers=True,
+    )
+
+    test_dataloader = create_qa_dataloader(
+        data=test_data,
         tokenizer=tokenizer,
         batch_size=int(config["batch_size"]/ 4), #TODO the batch_size for the finetune is a lot lower
         max_length=config["context_length"],
@@ -380,6 +398,10 @@ def finetune_qa(
     print(f"Training examples: {len(train_data)}")
     print(f"Batches/epoch: {len(train_dataloader)}")
     
+    print(f"\Test data: {config['qa_test']}")
+    print(f"Test examples: {len(test_data)}")
+    print(f"Batches/epoch: {len(test_dataloader)}")
+
     # Training config
     train_config = TrainingConfig(
         num_epochs=config["finetune_epochs"],
@@ -389,6 +411,7 @@ def finetune_qa(
         max_grad_norm=1.0,
         device=device,
         log_interval=max(1, len(train_dataloader) // 5),
+        patience=1,
     )
     
     # Train
@@ -396,6 +419,7 @@ def finetune_qa(
         model=qa_model,
         config=train_config,
         train_dataloader=train_dataloader,
+        val_dataloader=test_dataloader,
         compute_loss_fn=create_qa_loss_fn(device),
     )
     

@@ -21,31 +21,21 @@ class PromptTemplate:
         "instruction": "Read the following passage and answer the question.\n\nPassage: {context}\n\nQuestion: {question}\n\n{choices_formatted}\n\nSelect the letter:",
         "simple": "{context}\n{question}\n{choices_formatted}\nThe answer is",
         "micah" : """
-        Read the following passage and answer the question.
-
-        Passage: Grandma always made the best apple pie. She used apples from her own tree and a secret recipe that had been in the family for generations.
-
-        Question: Where did Grandma get the apples for her pie?
-
-        Options: ["From the store", "From her neighbor", "From her own tree", "From the market"]
-
-        Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:
-
-        2
-
-        Read the following passage and answer the question.
-
-        Passage: The space rocket launched at midnight. All the scientists watched as it flew up into the dark sky, heading toward the moon.
-
-        Question: When did the rocket launch?
-
-        Options: ["At noon", "At midnight", "In the morning", "At sunset"]
-
-        Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:
-
-        1
-
-    """"" + "Read the following passage and answer the question.\n\nPassage: {context}\n\nQuestion: {question}\n\n Options: {choices_formatted}\n\n Return a single number, either 0, 1, 2, or 3, corresponding to the correct option:"
+        Context: On May 21, 2013, NFL owners at their spring meetings in Boston voted and awarded the game to Levi's Stadium. The $1.2 billion stadium opened in 2014. It is the first Super Bowl held in the San Francisco Bay Area since Super Bowl XIX in 1985, and the first in California since Super Bowl XXXVII took place in San Diego in 2003.
+        Question: Where did the spring meetings of the NFL owners take place?
+        Options: ["Boston",
+      "Super Bowl XXXVII",
+      "cholera",
+      "between June and September"]
+        Answer: 0
+        Context: The Broncos defeated the Pittsburgh Steelers in the divisional round, 23\u201316, by scoring 11 points in the final three minutes of the game. They then beat the defending Super Bowl XLIX champion New England Patriots in the AFC Championship Game, 20\u201318, by intercepting a pass on New England's 2-point conversion attempt with 17 seconds left on the clock. Despite Manning's problems with interceptions during the season, he didn't throw any in their two playoff games.
+        Question: How many seconds were left in the game when the Broncos intercepted the pass that won the game?
+        Options: "Pittsburgh Steelers",
+      "South African Vice Consul Duke Kent-Brown.",
+      "1%",
+      "17"
+        Answer: 3
+    """"" + "\Context: {context}\nQuestion: {question}\n Options: {choices_formatted}\n Answer:"
     }
     
     def __init__(self, template_name: str = "basic", custom_template: Optional[str] = None, choice_format: str = "letter"):

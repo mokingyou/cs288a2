@@ -5,4 +5,14 @@ few-shot prompts and increase model-size, etc. since that should help.
 We could also change the datasets. Add more data or add more informative data.
 Maybe we could train not on the full tinystories but also train on the qa data?
 
+Change model type. Just keep the transformer and finetune the top two layeers. Freeze everything but unembedding head. Or top layer
+options:
+- unembedding head >>> might change performance a lot
+- last two layers  >>> might change performance a lot
+- linear classification head >>> seems simple enough
 
+Decrease dataset size...? to 500k stories? >>> stick to 2 mil stories? >>> start small and build up
+Mixed precision 
+Use small model
+Plot validation losses and use early stopping
+Retune prompts to match qa

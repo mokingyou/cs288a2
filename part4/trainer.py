@@ -55,6 +55,7 @@ class Trainer:
         self.best_val_loss = float("inf")
         self.train_losses = []
         self.val_losses = []
+        self.scaler = torch.amp.GradScaler("cuda" ,enabled=self.config.use_amp)
     
     def _default_lm_loss(self, batch: Dict[str, torch.Tensor], model: nn.Module) -> torch.Tensor:
         input_ids = batch["input_ids"].to(self.config.device, non_blocking=True)
@@ -73,14 +74,20 @@ class Trainer:
             #TODO my code
             data_time= time.perf_counter() - t_prev
             t0 = time.perf_counter()
+            
+            with torch.autocast(device_type=self.config.device.type, dtype=torch.float16, enabled=self.config.use_amp):
+                loss = self.compute_loss_fn(batch, self.model)
 
-            self.optimizer.zero_grad(set_to_none=True)
-            loss = self.compute_loss_fn(batch, self.model)
-            loss.backward()
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
-            self.optimizer.step()
-            self.scheduler.step()
 
+            self.scaler.step(self.optimizer)
+            
+            self.scaler.update()
+            self.optimizer.zero_grad(set_to_none=True)
+            self.scheduler.step()
+            
             compute_time = time.perf_counter() - t0
             total_loss += loss.item()
             num_batches += 1
@@ -111,13 +118,27 @@ class Trainer:
         return total_loss / num_batches if num_batches > 0 else 0.0
     
     def train(self) -> Dict[str, Any]:
+        stalled_epochs = 0
+        prev_val = float('inf')
+
         for epoch in range(self.config.num_epochs):
-            print(f"Completed epoch #{epoch}")
             train_loss = self.train_epoch()
             self.train_losses.append(train_loss)
             if self.val_dataloader:
                 val_loss = self.evaluate()
                 self.val_losses.append(val_loss)
+                if val_loss < prev_val - 0.01:
+                    stalled_epochs = 0
+                    prev_val = val_loss
+                else:
+                    stalled_epochs += 1
+                
+                if stalled_epochs > self.config.patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
+                print(f"Completed epoch #{epoch} with val_loss: {val_loss}")
+            print(f"Completed epoch #{epoch} with train_loss {train_loss}")
+
         return {"train_losses": self.train_losses, "val_losses": self.val_losses}
 
 
