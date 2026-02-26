@@ -19,13 +19,10 @@ def softmax(x: Tensor, dim: int = -1) -> Tensor:
     """
     # TODO: Implement numerically stable softmax. You can re-use the same one 
     # used in part 2. But for this problem, you need to implement a numerically stable version to pass harder tests.
-    maxes = torch.max(x, dim=-1, keepdim=True)[0]
-    x_exp = torch.exp(x - maxes)
+    x = x - torch.max(x, dim=dim, keepdim=True).values
+    x_exp = x.exp()
 
-    total = torch.sum(x_exp, dim=dim, keepdim=True)
-    softmax_row = x_exp / total
-
-    return softmax_row
+    return x_exp / x_exp.sum(dim=dim, keepdim=True)
 
 def log_softmax(x, dim=-1):
     x_max_values, max_indices = torch.max(x, dim=dim, keepdims=True)
@@ -50,15 +47,11 @@ def cross_entropy(logits: Tensor, targets: Tensor) -> Tensor:
     #We need to find the ground truth implementation of cross-entropy loss
     #Match their descriptions
     #Implement
-    max_values, _ = torch.max(logits, dim=-1, keepdims=True)
-    log_probs = logits - max_values - torch.log(torch.sum(torch.exp(logits - max_values), dim=-1, keepdims=True))
-    #log_probs = log_softmax(logits, dim=1)
-    # 2. Gather the log-probabilities corresponding to the target indices
-    # Shape becomes (Batch Size)
-    nll_loss = -log_probs.gather(dim=1, index=targets.unsqueeze(1)).squeeze(1)
-    
-    # 3. Return the mean loss
-    return nll_loss.mean()
+    log_denom = torch.logsumexp(logits, dim=-1, keepdim=True)  # (N,1)
+    log_probs = logits - log_denom                            # (N,C)
+
+    nll = -log_probs.gather(dim=1, index=targets.unsqueeze(1)).squeeze(1)  # (N,)
+    return nll.mean()
 
 def gradient_clipping(parameters, max_norm: float) -> Tensor:
     """
@@ -75,16 +68,21 @@ def gradient_clipping(parameters, max_norm: float) -> Tensor:
         parameters = [parameters]
 
     grads = [p.grad for p in parameters if p.grad is not None]
+    if not grads:
+        return torch.tensor(0.0)
 
-    
-    total = torch.linalg.norm(torch.stack([torch.linalg.norm(g) for g in grads]))
-    
-    if total > max_norm:
+    device = grads[0].device
+    total_sq = torch.zeros((), device=device)
+    for g in grads:
+        total_sq = total_sq + g.pow(2).sum()
+    total_norm = total_sq.sqrt()
+
+    clip_coef = max_norm / (total_norm + 1e-6)
+    if clip_coef < 1.0:
         for g in grads:
-            with torch.no_grad():
-                g.mul_(max_norm / (total + 1e-6))
-    
-    return total
+            g.mul_(clip_coef)
+
+    return total_norm
 
 def token_accuracy(logits: Tensor, targets: Tensor, ignore_index: int = -100) -> Tensor:
     """
@@ -113,18 +111,13 @@ def token_accuracy(logits: Tensor, targets: Tensor, ignore_index: int = -100) ->
         >>> token_accuracy(logits, targets)
         tensor(0.6667)  # 2 out of 3 correct
     """
-    non_ignored = torch.argwhere(targets != ignore_index)
+    mask = targets != ignore_index
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=logits.device)
 
-    logits = logits[non_ignored, :]
-    targets = targets[non_ignored]
-
-    pred_classes = torch.argmax(logits, dim=-1)
-
-    bool_mask = pred_classes == targets
-    digits = bool_mask.to(torch.float32)
-    accuracy = torch.mean(digits)
-
-    return accuracy
+    preds = logits.argmax(dim=-1)
+    correct = (preds == targets) & mask
+    return correct.float().sum() / mask.sum()
 
 def perplexity(logits: Tensor, targets: Tensor, ignore_index: int = -100) -> Tensor:
     """
@@ -161,13 +154,12 @@ def perplexity(logits: Tensor, targets: Tensor, ignore_index: int = -100) -> Ten
 
     #I think we have like double lists or something? 
     #From how? 
-    non_ignored = torch.argwhere(targets != ignore_index)
+    mask = targets != ignore_index
+    if mask.sum() == 0:
+        return torch.tensor(1.0, device=logits.device)
 
-    logits = logits[non_ignored, :]
-    targets = targets[non_ignored]
+    logits_valid = logits[mask]
+    targets_valid = targets[mask]
 
-    logits = logits.squeeze(1)
-    targets = targets.squeeze(-1)
-    
-    return torch.exp(cross_entropy(logits, targets))
+    return torch.exp(cross_entropy(logits_valid, targets_valid))
 

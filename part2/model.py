@@ -449,7 +449,7 @@ def scaled_dot_product_attention(
     if mask is not None:
         scores = scores.masked_fill(~mask, float("-1e10"))
 
-    attn = torch.softmax(scores, dim=-1)
+    attn = softmax(scores, dim=-1)
     return attn @ V
 
 
