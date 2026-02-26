@@ -240,7 +240,7 @@ def pretrain_lm(
         max_length=config["context_length"],
         stride=config["context_length"] // 2,
         shuffle=True,
-        num_workers=2,
+        num_workers=4,
         persistent_workers=True,
     )
     
@@ -391,7 +391,7 @@ def finetune_qa(
         max_length=config["context_length"],
         num_choices=4,
         shuffle=True,
-        num_workers=2,
+        num_workers=4,
         persistent_workers=True,
     )
     
@@ -427,7 +427,7 @@ def finetune_qa(
             max_length=config["context_length"],
             num_choices=4,
             shuffle=True,
-            num_workers=2,
+            num_workers=4,
             persistent_workers=True,
         )
         print(f"\nTest data: {config['qa_test']}")
@@ -489,7 +489,7 @@ def evaluate_finetuned(
         max_length=config["context_length"],
         num_choices=4,
         shuffle=False,
-        num_workers=2,
+        num_workers=4,
         persistent_workers=True,
     )
     
