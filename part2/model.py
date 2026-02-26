@@ -91,15 +91,7 @@ class Embedding(nn.Module):
         Returns:
             Tensor of embeddings of shape (batch, seq_len, d_model)
         """
-        batch, seq_len = token_ids.shape
-
-        x = torch.empty((batch, seq_len, self.d_model))
-
-        for b in range(batch):
-            for l in range(seq_len):
-                x[b, l, :] = self.weight[token_ids[b, l], :]
-
-        return x
+        return self.weight[token_ids]
 
 
 # =============================================================================
@@ -165,13 +157,10 @@ def softmax(x: Tensor, dim: int = -1) -> Tensor:
     Returns:
         Tensor of same shape as input with softmax applied along dim
     """
-    maxes = torch.max(x, dim=-1, keepdim=True)[0]
-    x_exp = torch.exp(x - maxes)
+    x = x - torch.max(x, dim=dim, keepdim=True).values
+    x_exp = x.exp()
 
-    total = torch.sum(x_exp, dim=dim, keepdim=True)
-    softmax_row = x_exp / total
-
-    return softmax_row
+    return x_exp / x_exp.sum(dim=dim, keepdim=True)
 # =============================================================================
 # SiLU activation (helper for SwiGLU)
 # =============================================================================
@@ -454,21 +443,14 @@ def scaled_dot_product_attention(
         Attention output of shape (..., seq_len_q, d_v)
     """
     # TODO: Implement scaled dot-product attention
-    
-    d_k = Q.shape[-1]
-    
-    #We need to get the correct keys.
-    scores = torch.matmul(Q, K.mT) / math.sqrt(d_k)
+    d = Q.size(-1)
+    scores = (Q @ K.transpose(-2, -1)) / math.sqrt(d)  # (b, h, s, s)
 
-    scores = scores.to(Q.device)
     if mask is not None:
-        scores = torch.where(mask.to(Q.device), scores, torch.tensor(float(-1e10)).to(Q.device)).to(Q.device)
-    
-    scores = torch.softmax(scores, dim=-1)
+        scores = scores.masked_fill(~mask, float("-1e10"))
 
-    outputs = torch.matmul(scores, V)
-    
-    return outputs
+    attn = torch.softmax(scores, dim=-1)
+    return attn @ V
 
 
 # =============================================================================
@@ -521,29 +503,23 @@ class MultiHeadSelfAttention(nn.Module):
         Returns:
             Output tensor of shape (batch, seq_len, d_model)
         """
-        batch_size, seq_len, _ = x.shape
-        q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
+        b, s, _ = x.shape
+        device = x.device
 
-        device = torch.get_default_device()
-        mask = self._create_causal_mask(seq_len, device).to(q.device)
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
 
-        #Split q, k, v, mask into different heads?
-        q_heads, k_heads, v_heads = torch.split(q, self.d_k, dim=-1), torch.split(k, self.d_k, dim=-1), torch.split(v, self.d_k, dim=-1)
+        q = q.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
+        k = k.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
+        v = v.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
 
-        outputs = []
+        mask = self._create_causal_mask(s, device)
 
-        #Apply scaled dot product attention
-        for i in range(self.num_heads):
-            outputs.append(scaled_dot_product_attention(q_heads[i], k_heads[i], v_heads[i], mask))
-        
-        outputs = tuple(outputs)
-        #Concatenate all the heads together
-        outputs = torch.cat(outputs, dim=-1).view(batch_size, seq_len, -1)
-        
-        #Out and return
-        outputs = self.output_proj(outputs)
+        out = scaled_dot_product_attention(q, k, v, mask=mask)
 
-        return outputs
+        out = out.transpose(1, 2).contiguous().view(b, s, self.d_model)
+        return self.output_proj(out)
 
 
 
@@ -601,38 +577,23 @@ class MultiHeadSelfAttentionWithRoPE(nn.Module):
         Returns:
             Output tensor of shape (batch, seq_len, d_model)
         """
-        batch_size, seq_len, _ = x.shape
-        
-        # Default to sequential positions
+        b, s, _ = x.shape
+        device = x.device
         if token_positions is None:
-            token_positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(batch_size, -1)
-        
-        # TODO: Implement multi-head self-attention with RoPE
-        
-        
-        q, k, v = self.q_proj(x), self.k_proj(x), self.v_proj(x)
-        
+            token_positions = torch.arange(s, device=device).unsqueeze(0).expand(b, -1)
 
-        device = torch.get_default_device()
-        mask = self._create_causal_mask(seq_len, device)
+        q = self.q_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
+        k = self.k_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
+        v = self.v_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
 
-        #Split q, k, v, mask into different heads?
-        q_heads, k_heads, v_heads = torch.split(q, self.d_k, dim=-1), torch.split(k, self.d_k, dim=-1), torch.split(v, self.d_k, dim=-1)
-        outputs = []
+        q = self.rope(q, token_positions)
+        k = self.rope(k, token_positions)
 
-        #Apply scaled dot product attention
-        for i in range(self.num_heads):
-            q_head, k_head = self.rope(q_heads[i], token_positions), self.rope(k_heads[i], token_positions)
-            outputs.append(scaled_dot_product_attention(q_head, k_head, v_heads[i], mask))
-        
-        outputs = tuple(outputs)
-        #Concatenate all the heads together
-        outputs = torch.cat(outputs, dim=-1).view(batch_size, seq_len, -1)
-        
-        #Out and return
-        outputs = self.output_proj(outputs)
+        mask = self._create_causal_mask(s, device)
+        out = scaled_dot_product_attention(q, k, v, mask=mask)
 
-        return outputs
+        out = out.transpose(1, 2).contiguous().view(b, s, self.d_model)
+        return self.output_proj(out)
 
 
 # =============================================================================
