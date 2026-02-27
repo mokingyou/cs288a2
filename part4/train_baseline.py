@@ -84,7 +84,7 @@ CONFIGS = {
     },
     "small": {
         # Small model, larger data - ~10M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_100k.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_full.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 4096,
@@ -94,7 +94,7 @@ CONFIGS = {
         "d_ff": 1024,
         "context_length": 512,
         "pretrain_epochs": 3,
-        "finetune_epochs": 3,
+        "finetune_epochs": 5,
         "batch_size": 32,
         "lr": 3e-4,
     },
@@ -125,7 +125,7 @@ CONFIGS = {
         "num_heads": 8,
         "d_ff": 1024,
         "context_length": 512,
-        "pretrain_epochs": 1,
+        "pretrain_epochs": 5,
         "finetune_epochs": 5,
         "batch_size": 32,
         "lr": 3e-4,

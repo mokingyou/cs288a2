@@ -506,10 +506,12 @@ class MultiHeadSelfAttention(nn.Module):
         b, s, _ = x.shape
         device = x.device
 
+        #Projections
         q = self.q_proj(x)
         k = self.k_proj(x)
         v = self.v_proj(x)
 
+        #Reshape (b, s, n, d_k)
         q = q.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
         k = k.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
         v = v.view(b, s, self.num_heads, self.d_k).transpose(1, 2)
@@ -517,8 +519,10 @@ class MultiHeadSelfAttention(nn.Module):
         mask = self._create_causal_mask(s, device)
 
         out = scaled_dot_product_attention(q, k, v, mask=mask)
-
+        
+        #Reshape (b, s, d)
         out = out.transpose(1, 2).contiguous().view(b, s, self.d_model)
+
         return self.output_proj(out)
 
 
@@ -582,10 +586,12 @@ class MultiHeadSelfAttentionWithRoPE(nn.Module):
         if token_positions is None:
             token_positions = torch.arange(s, device=device).unsqueeze(0).expand(b, -1)
 
+        #Projections and reshape
         q = self.q_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
         k = self.k_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
         v = self.v_proj(x).view(b, s, self.num_heads, self.d_k).transpose(1, 2)
 
+        #Apply RoPE
         q = self.rope(q, token_positions)
         k = self.rope(k, token_positions)
 
@@ -593,6 +599,7 @@ class MultiHeadSelfAttentionWithRoPE(nn.Module):
         out = scaled_dot_product_attention(q, k, v, mask=mask)
 
         out = out.transpose(1, 2).contiguous().view(b, s, self.d_model)
+        
         return self.output_proj(out)
 
 
