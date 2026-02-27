@@ -446,8 +446,10 @@ def scaled_dot_product_attention(
     d = Q.size(-1)
     scores = (Q @ K.transpose(-2, -1)) / math.sqrt(d)  # (b, h, s, s)
 
+    
     if mask is not None:
-        scores = scores.masked_fill(~mask, float("-1e10"))
+        neg_inf = torch.finfo(scores.dtype).min
+        scores = scores.masked_fill(~mask, neg_inf)
 
     attn = softmax(scores, dim=-1)
     return attn @ V
@@ -599,7 +601,7 @@ class MultiHeadSelfAttentionWithRoPE(nn.Module):
         out = scaled_dot_product_attention(q, k, v, mask=mask)
 
         out = out.transpose(1, 2).contiguous().view(b, s, self.d_model)
-        
+
         return self.output_proj(out)
 
 
