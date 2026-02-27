@@ -54,7 +54,7 @@ CONFIGS = {
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
-        "vocab_size": 128,
+        "vocab_size": 512,
         "d_model": 64,
         "num_layers": 4,
         "num_heads": 4,
