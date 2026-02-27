@@ -4,14 +4,12 @@ BPE (Byte Pair Encoding) training implementation.
 This module implements the BPE algorithm for learning a tokenizer vocabulary
 from a text corpus, compatible with GPT-2 style tokenization.
 """
-
 from __future__ import annotations
-
 import regex as re
-from collections import Counter
 from pathlib import Path
 from typing import Iterator
-
+import heapq
+from collections import Counter, defaultdict
 
 # GPT-2 pre-tokenization pattern
 GPT2_PAT = re.compile(
@@ -106,6 +104,7 @@ def build_initial_vocab(special_tokens: list[str]
 
     return vocab
 
+
 def update_pair_counts(word_freqs: Counter[tuple[bytes, ...], int],
                        ) -> Counter[tuple[bytes, bytes]]:
     """ 3. PAIR FREQUENCY COUNTING  
@@ -126,140 +125,172 @@ def update_pair_counts(word_freqs: Counter[tuple[bytes, ...], int],
     
     return pair_counts
 
+import heapq
+from collections import Counter, defaultdict
+
+class RevPair:
+    __slots__ = ("p",)
+    def __init__(self, p: tuple[bytes, bytes]):
+        self.p = p
+    def __lt__(self, other: "RevPair") -> bool:
+        # Reverse the *entire tuple* ordering.
+        # This makes the heap prefer lexicographically *largest* pair on ties.
+        return self.p > other.p
+
+def heap_push(heap, pair_counts: Counter, p: tuple[bytes, bytes]):
+    c = pair_counts.get(p, 0)
+    if c > 0:
+        # heap item ordered by (-count, RevPair(pair)) == max(count, pair)
+        heapq.heappush(heap, (-c, RevPair(p), p))
+
+def heap_pop_best(heap, pair_counts: Counter) -> tuple[bytes, bytes] | None:
+    while heap:
+        negc, _rp, p = heap[0]
+        c = -negc
+        # lazy deletion: stale count or dead pair => discard
+        if pair_counts.get(p, 0) != c or c <= 0:
+            heapq.heappop(heap)
+            continue
+        return p
+    return None
+
+def iter_adjacent_pairs(word: tuple[bytes, ...]):
+    for i in range(len(word) - 1):
+        yield (word[i], word[i + 1])
+
+def contains_pair(word: tuple[bytes, ...], pair: tuple[bytes, bytes]) -> bool:
+    a, b = pair
+    for i in range(len(word) - 1):
+        if word[i] == a and word[i + 1] == b:
+            return True
+    return False
+
+def iter_adjacent_pairs(word: tuple[bytes, ...]) -> Iterator[tuple[bytes, bytes]]:
+    for i in range(len(word) - 1):
+        yield (word[i], word[i + 1])
+
+def merge_word_once(word: tuple[bytes, ...], pair: tuple[bytes, bytes]) -> tuple[bytes, ...]:
+    # same as your merge_word; keeps “merge all occurrences” semantics
+    first, second = pair
+    out = []
+    i = 0
+    while i < len(word):
+        if i < len(word) - 1 and word[i] == first and word[i + 1] == second:
+            out.append(first + second)
+            i += 2
+        else:
+            out.append(word[i])
+            i += 1
+    return tuple(out)
+
+
+
 def train_bpe(
     input_path: Path,
     vocab_size: int,
     special_tokens: list[str] | None = None,
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    """
-    Train a BPE tokenizer from a text file.
-    
-    Args:
-        input_path: Path to the input text file
-        vocab_size: Target vocabulary size
-        special_tokens: List of special tokens to include (e.g., ["<|endoftext|>"])
-        
-    Returns:
-        Tuple of (vocab, merges) where:
-        - vocab: dict mapping token_id (int) -> token (bytes)
-        - merges: list of merge pairs in order they were learned [(bytes, bytes), ...]
-    
-    Algorithm Overview:
-        BPE iteratively merges the most frequent pair of adjacent tokens until
-        the vocabulary reaches the target size.
-    
-    Detailed Steps:
-    
-    Performance Note:
-        A naive implementation recomputing all pair counts each iteration is O(n²).
-        For efficiency, incrementally update pair counts by only processing words
-        that contained the merged pair.
-    """
     special_tokens = special_tokens or []
-    merges = []
-    # Read the corpus
-    with open(input_path, encoding="utf-8") as f:
-        text = f.read()
-    
-    # Build set of "forbidden" substrings from special tokens
-    forbidden_substrings = set()
-    for special in special_tokens:
-        special_bytes = special.encode("utf-8")
-        for i in range(2, len(special_bytes) + 1):
-            forbidden_substrings.add(special_bytes[:i])
-    
-    # TODO: Implement BPE training
-    #Build vocabulary
-    
-    vocab = build_initial_vocab(special_tokens)
-    
-    """ 2. WORD FREQUENCY COUNTING
-       - Pre-tokenize the corpus using pre_tokenize(text, special_tokens)
-       - For each pre-token, convert to bytes and represent as tuple of single bytes
-       - Skip any word containing a "forbidden substring" (prefix of a special token)
-       
-       Example: "hello" -> (b'h', b'e', b'l', b'l', b'o')
-       
-       word_freqs is a Counter mapping: tuple[bytes, ...] -> frequency """
-    
-    #Pretokenize
-    pretokenized = pre_tokenize(text, special_tokens=special_tokens)
-    list_words = []
-    
-    for pre_token in pretokenized:
-        word_bytes = []
-        special = False
-        for item in pre_token:
-            if item in special_tokens:
-                special = True
-                break
-            word_bytes.append(item.encode("utf-8"))
-        
-        if not special:
-            list_words.append(tuple(word_bytes))
 
-    word_freqs = Counter(list_words)
+    text = input_path.read_text(encoding="utf-8")
+    vocab = build_initial_vocab(special_tokens)  # your function; returns id->bytes
+    merges: list[tuple[bytes, bytes]] = []
 
-    pair_counts = update_pair_counts(word_freqs=word_freqs)
+    # Forbidden substrings (prefixes of specials), like you had — but do it as bytes list
+    forbidden: list[bytes] = []
+    for s in special_tokens:
+        sb = s.encode("utf-8")
+        forbidden.extend(sb[:i] for i in range(2, len(sb) + 1))
 
-    """ 4. MERGE LOOP (repeat until vocab_size is reached)
-       
-       a. SELECT BEST PAIR (DETERMINISTIC TIE-BREAKING):
-          Find the pair with highest frequency. If multiple pairs have the same
-          frequency, select the lexicographically smallest pair.
-          
-          Lexicographic comparison on (bytes, bytes) tuples:
-            - Compare first element as bytes
-            - If equal, compare second element as bytes
-          
-          Example: If pairs (b'a', b'b') and (b'a', b'c') both have freq=100,
-                   select (b'a', b'b') because b'b' < b'c'
-          
-          Implementation: max(pair_counts, key=lambda p: (pair_counts[p], p))
-                          This sorts by (frequency, pair) and takes the max.
-                          Since we want highest freq but lowest pair for ties,
-                          use: max(pair_counts, key=lambda p: (pair_counts[p], p))
-                          
-                          Note: Python compares bytes lexicographically by default.
-       
-       b. CREATE MERGED TOKEN:
-          new_token = first + second  (bytes concatenation)
-          Add to vocabulary with next available token_id
-          Append (first, second) to merges list
-       
-       c. UPDATE WORD REPRESENTATIONS:
-          For each word in word_freqs, apply the merge using merge_word()
-          This replaces all occurrences of the pair with the merged token
-       
-       d. UPDATE PAIR COUNTS:
-          Recompute pair frequencies for the updated words
-          (Or incrementally update - subtract old pairs, add new pairs) """
+    # 1) Build word_freqs as Counter[word_tuple] -> freq (streaming)
+    word_freqs: Counter[tuple[bytes, ...]] = Counter()
+    for tok in pre_tokenize(text, special_tokens=special_tokens):
+        b = tok.encode("utf-8")
+        if forbidden and any(f in b for f in forbidden):
+            continue
+        word = tuple(b[i:i+1] for i in range(len(b)))  # tuple of single bytes
+        if word:
+            word_freqs[word] += 1
+
+    # 2) Freeze unique words into arrays (CS336 pattern)
+    #    We'll keep an indexed list of current word representations and their frequencies.
+    words = list(word_freqs.keys())
+    freqs = [word_freqs[w] for w in words]
     
-    #pair_counts = Counter(tuple(bytes, bytes))
+    # 3) pair_counts + pair_to_words (inverted index)
+    pair_counts: Counter[tuple[bytes, bytes]] = Counter()
+    pair_to_words: dict[tuple[bytes, bytes], set[int]] = defaultdict(set)
+
+    def add_word_pairs(wid: int, w: tuple[bytes, ...], f: int):
+        for p in iter_adjacent_pairs(w):
+            pair_counts[p] += f
+            pair_to_words[p].add(wid)
+
+    def remove_word_pairs(wid: int, w: tuple[bytes, ...], f: int):
+        for p in iter_adjacent_pairs(w):
+            pair_counts[p] -= f
+            pair_to_words[p].discard(wid)
+
+    for wid, w in enumerate(words):
+        add_word_pairs(wid, w, freqs[wid])
+
+    # 1) Build heap once initially over pair_counts
+    heap = []
+    for p, c in pair_counts.items():
+        if c > 0:
+            heap_push(heap, pair_counts, p)
+
+
     num_merges = vocab_size - len(vocab)
-
     for _ in range(num_merges):
-        if not pair_counts:
-            break  # No more pairs to merge
-        highest_freq_pair = max(pair_counts, key=lambda p: (pair_counts[p], p))
-        first, second = highest_freq_pair[0], highest_freq_pair[1]
-        new_token = first + second
+        best_pair = heap_pop_best(heap, pair_counts)
+        if best_pair is None:
+            break
 
-        vocab[len(vocab)] = new_token
+        # If you need the EXACT autograder semantics, this equals:
+        # best_pair == max(pair_counts, key=lambda p: (pair_counts[p], p))
 
-        merges.append(highest_freq_pair)
-        new_word_freqs = Counter()
-        for old_word, freq in word_freqs.items():
-            new_word = merge_word(old_word, highest_freq_pair)
-            new_word_freqs[new_word] = freq
-        word_freqs = new_word_freqs
+        # record merge + vocab add
+        merges.append(best_pair)
+        vocab[len(vocab)] = best_pair[0] + best_pair[1]
 
-        pair_counts = update_pair_counts(word_freqs)
-    
-    """ 5. RETURN
-       Return (vocab, merges) where merges is the list of pairs in the order
-       they were merged. """
-    
-    return (vocab, merges)
+        affected = list(pair_to_words.get(best_pair, ()))
+        if not affected:
+            pair_counts[best_pair] = 0
+            continue
+
+        touched = set()
+
+        for wid in affected:
+            old_w = words[wid]
+            f = freqs[wid]
+
+            # membership can be stale because we use lazy structures
+            if not contains_pair(old_w, best_pair):
+                pair_to_words[best_pair].discard(wid)
+                continue
+
+            # remove old contributions (and track touched pairs)
+            for p in iter_adjacent_pairs(old_w):
+                touched.add(p)
+            remove_word_pairs(wid, old_w, f)
+
+            # merge
+            new_w = merge_word(old_w, best_pair)
+            words[wid] = new_w
+
+            # add new contributions (and track touched pairs)
+            for p in iter_adjacent_pairs(new_w):
+                touched.add(p)
+            add_word_pairs(wid, new_w, f)
+
+        pair_to_words[best_pair].clear()
+
+        # 3) Push touched pairs back into heap (lazy deletion handles staleness)
+        for p in touched:
+            if pair_counts.get(p, 0) > 0:
+                heap_push(heap, pair_counts, p)
+
+    return vocab, merges
 
 
