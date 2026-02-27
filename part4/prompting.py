@@ -20,6 +20,7 @@ class PromptTemplate:
         "basic": "Context: {context}\n\nQuestion: {question}\n\nChoices:\n{choices_formatted}\n\nAnswer:",
         "instruction": "Read the following passage and answer the question.\n\nPassage: {context}\n\nQuestion: {question}\n\n{choices_formatted}\n\nSelect the letter:",
         "simple": "{context}\n{question}\n{choices_formatted}\nThe answer is",
+        "micah" : """ Context: On May 21, 2013, NFL owners at their spring meetings in Boston voted and awarded the game to Levi's Stadium. The $1.2 billion stadium opened in 2014. It is the first Super Bowl held in the San Francisco Bay Area since Super Bowl XIX in 1985, and the first in California since Super Bowl XXXVII took place in San Diego in 2003. Question: Where did the spring meetings of the NFL owners take place? Options: ["Boston", "Super Bowl XXXVII", "cholera", "between June and September"] Answer: 0 """"" + "\Context: {context}\nQuestion: {question}\n Options: {choices_formatted}\n Answer:"
     }
     
     def __init__(self, template_name: str = "basic", custom_template: Optional[str] = None, choice_format: str = "letter"):
