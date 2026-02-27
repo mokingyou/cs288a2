@@ -124,7 +124,7 @@ CONFIGS = {
         "num_layers": 6,
         "num_heads": 8,
         "d_ff": 1024,
-        "context_length": 512,
+        "context_length": 724,
         "pretrain_epochs": 5,
         "finetune_epochs": 5,
         "batch_size": 32,
@@ -319,7 +319,7 @@ def evaluate_prompting(
     print(f"\nValidation examples: {len(dev_data)}")
     
     # Create pipeline
-    template = PromptTemplate(template_name="micah")
+    template = PromptTemplate(template_name="basic")
     pipeline = PromptingPipeline(
         model=model,
         tokenizer=tokenizer,
