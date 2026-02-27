@@ -67,9 +67,9 @@ CONFIGS = {
     },
     "quick": {
         # Small config for quick testing
-        "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
-        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_100k.txt",
+        "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 512,
         "d_model": 128,
         "num_layers": 4,
@@ -77,7 +77,7 @@ CONFIGS = {
         "d_ff": 512,
         "context_length": 724,
         "pretrain_epochs": 3,
-        "finetune_epochs": 15,
+        "finetune_epochs": 3,
         "batch_size": 32,
         "lr": 1e-3,
     },
@@ -115,19 +115,20 @@ CONFIGS = {
     },
     "micah": {
         # Small model, larger data  - ~10M parameters
-        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_500k.txt",
+        "pretrain_data": Path(__file__).parent / "fixtures/tinystories_sample_5M.txt",
         "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_test": Path(__file__).parent / "fixtures/squad_test.json",
         "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
-        "vocab_size": 4096,
-        "d_model": 256,
-        "num_layers": 6,
-        "num_heads": 8,
-        "d_ff": 1024,
+        "vocab_size": 512,
+        "d_model": 64,
+        "num_layers": 4,
+        "num_heads": 4,
+        "d_ff": 128,
         "context_length": 724,
         "pretrain_epochs": 5,
-        "finetune_epochs": 5,
+        "finetune_epochs": 15,
         "batch_size": 32,
-        "lr": 3e-4,
+        "lr": 1e-3,
     }
 }
 
