@@ -52,14 +52,14 @@ CONFIGS = {
     "tiny": {
         # Small config for quick testing
         "pretrain_data": Path(__file__).parent.parent / "part1/fixtures/tinystories_sample_5M.txt",
-        "qa_train": Path(__file__).parent / "fixtures/qa_train.json",
-        "qa_dev": Path(__file__).parent / "fixtures/qa_dev.json",
+        "qa_train": Path(__file__).parent / "fixtures/squad_train.json",
+        "qa_dev": Path(__file__).parent / "fixtures/squad_dev.json",
         "vocab_size": 128,
         "d_model": 64,
         "num_layers": 4,
         "num_heads": 4,
         "d_ff": 128,
-        "context_length": 512,
+        "context_length": 724,
         "pretrain_epochs": 1,
         "finetune_epochs": 1,
         "batch_size": 32,
@@ -92,9 +92,9 @@ CONFIGS = {
         "num_layers": 6,
         "num_heads": 8,
         "d_ff": 1024,
-        "context_length": 512,
+        "context_length": 724,
         "pretrain_epochs": 3,
-        "finetune_epochs": 5,
+        "finetune_epochs": 3,
         "batch_size": 32,
         "lr": 3e-4,
     },
@@ -221,7 +221,6 @@ def pretrain_lm(
         d_ff=config["d_ff"],
     ).to(device)
 
-    model = torch.compile(model)
  
     num_params = sum(p.numel() for p in model.parameters())
     print(f"\nModel architecture:")
@@ -375,7 +374,6 @@ def finetune_qa(
         pooling="last",  # Use mean token representation
         freeze_backbone=True,  # Fine-tune only the head
     ).to(device)
-    qa_model = torch.compile(qa_model)
     
     print(f"\nQA model parameters: {sum(p.numel() for p in qa_model.parameters()):,}")
     
