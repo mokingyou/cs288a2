@@ -38,7 +38,14 @@ class Tokenizer:
         self.special_tokens = special_tokens or []
         # Sort special tokens by length (descending) for longest-match-first
         self.special_tokens_sorted = sorted(self.special_tokens, key=len, reverse=True)
-        
+        if self.special_tokens_sorted:
+            escaped = [re.escape(s) for s in self.special_tokens_sorted]
+            self._special_split_re = re.compile(f"({'|'.join(escaped)})")
+            self._special_set = set(self.special_tokens_sorted)
+        else:
+            self._special_split_re = None
+            self._special_set = set()
+
         # Build special token to ID mapping
         self.special_token_ids = {}
         for token in self.special_tokens:
@@ -52,6 +59,7 @@ class Tokenizer:
             r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
             re.UNICODE
         )
+        
 
     def _get_pairs(self, tokens: list[bytes]) -> set[tuple[bytes, bytes]]:
         """Get all adjacent pairs of tokens."""
@@ -124,19 +132,10 @@ class Tokenizer:
         return tokens
 
     def _split_with_special_tokens(self, text: str) -> list[tuple[str, bool]]:
-        """
-        Split text by special tokens, preserving them.
-        Returns list of (substring, is_special) tuples.
-        """
-        if not self.special_tokens_sorted:
+        if not self._special_split_re:
             return [(text, False)] if text else []
-
-        escaped_special_tokens = map(re.escape, self.special_tokens_sorted)
-        pattern = f"({'|'.join(escaped_special_tokens)})"
-
-        special_toks_set = set(self.special_tokens_sorted)
-
-        return [(p, p in special_toks_set) for p in re.split(pattern, text) if p != ""]
+        parts = [p for p in self._special_split_re.split(text) if p != ""]
+        return [(p, p in self._special_set) for p in parts]
 
     def _encode_chunk(self, text: str) -> list[int]:
         """
@@ -156,25 +155,17 @@ class Tokenizer:
         ids = []
         
         # TODO: Implement encoding
-        pre_tokens = self.pat.findall(text)
+        for pre_token in self.pat.findall(text):
+            bt = pre_token.encode("utf-8")
+            # each self._bpe returns [b'he', b'll', b'o'] or something
+            for piece in self._bpe(bt):
+                tid = self.inverse_vocab[piece]
+                if tid is not None:
+                    ids.append(tid)
+                else:
+                    ids.extend(self.inverse_vocab[bytes([b])] for b in piece)
+        return ids
 
-        byte_list = [pre_token.encode("utf-8") for pre_token in pre_tokens] 
-
-        byte_sequences = []
-        # each self._bpe returns [b'he', b'll', b'o'] or something
-        for byte_token in byte_list:
-            byte_sequences.extend(self._bpe(byte_token))
-
-        #byte sequences should be [b'he', b'll', b'o', b'wor', b'ld'] or something
-        token_ids = []
-        for bytes_seq in byte_sequences:
-            if bytes_seq in self.inverse_vocab:
-                token_ids.append(self.inverse_vocab[bytes_seq])
-            else:
-                for b in bytes_seq:
-                    token_ids.append(self.inverse_vocab[bytes([b])])
-
-        return token_ids
 
     def encode(self, text: str) -> list[int]:
         """
